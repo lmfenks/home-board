@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="ホーム">
+<title>ホームボード</title>
+<!--
+  iPad mini 2 (iOS 12 / Safari 12) 向け。
+  古い Safari でも動くように、JS は ES5、CSS は flex の gap などを使わずに書いている。
+-->
+<style>
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #0e1116;
+    color: #e8eaed;
+    font-family: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    overflow: hidden;
+    -webkit-user-select: none;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 2s;
+  }
+  body.night { opacity: 0.45; }
+
+  #app { display: -webkit-flex; display: flex; height: 100%; box-sizing: border-box; padding: 3vmin; }
+  .left  { -webkit-flex: 1 1 0; flex: 1 1 0; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; margin-right: 3vmin; min-width: 0; }
+  .right { -webkit-flex: 1 1 0; flex: 1 1 0; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; min-width: 0; }
+  .card { background: #171b22; border-radius: 2vmin; padding: 2.5vmin 3vmin; box-sizing: border-box; }
+
+  /* 時計 */
+  .clock { padding-top: 1vmin; padding-bottom: 3vmin; }
+  #time { font-size: 19vmin; font-weight: 200; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #sec { font-size: 6vmin; color: #7d8590; margin-left: 1vmin; font-weight: 300; }
+  #date { font-size: 4.6vmin; margin-top: 1.5vmin; color: #c9d1d9; }
+  #date .hol { color: #ff7b72; font-size: 3.4vmin; margin-left: 1.5vmin; }
+
+  /* 天気 */
+  .weather { -webkit-flex: 1 1 auto; flex: 1 1 auto; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
+  .wnow { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+  #wicon { font-size: 9vmin; line-height: 1; margin-right: 2vmin; }
+  #wtemp { font-size: 9vmin; font-weight: 300; line-height: 1; white-space: nowrap; }
+  #wtemp small { font-size: 3.6vmin; color: #7d8590; }
+  .wmeta { margin-left: 3vmin; font-size: 2.6vmin; color: #c9d1d9; line-height: 1.55; white-space: nowrap; min-width: 0; }
+  #wdesc { font-size: 3.4vmin; color: #e8eaed; }
+  #whum { color: #7d8590; }
+  .hi { color: #ff9e64; } .lo { color: #79c0ff; }
+  .loc { font-size: 2.4vmin; color: #7d8590; margin-bottom: 1.5vmin; }
+  .loc span { border-bottom: 1px dotted #7d8590; }
+  .fc { display: -webkit-flex; display: flex; margin-top: auto; padding-top: 2vmin; border-top: 1px solid #262c36; }
+  .fc .d { -webkit-flex: 1 1 0; flex: 1 1 0; text-align: center; font-size: 2.6vmin; line-height: 1.45; }
+  .fc .d .n { color: #7d8590; }
+  .fc .d .i { font-size: 5vmin; line-height: 1.3; }
+  .fc .d .r { color: #79c0ff; font-size: 2.3vmin; }
+  .fc .d.sun .n, .fc .d.hol .n { color: #ff7b72; }
+  .fc .d.sat .n { color: #79c0ff; }
+
+  /* カレンダー */
+  .cal { -webkit-flex: 1 1 auto; flex: 1 1 auto; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
+  #calTitle { font-size: 4.2vmin; margin-bottom: 1.5vmin; }
+  #calTitle small { font-size: 2.6vmin; color: #7d8590; margin-left: 1vmin; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; -webkit-flex: 1 1 auto; flex: 1 1 auto; }
+  th { font-size: 2.4vmin; font-weight: normal; color: #7d8590; padding-bottom: 1vmin; }
+  td { text-align: center; font-size: 3.4vmin; font-variant-numeric: tabular-nums; }
+  td span { display: inline-block; width: 6.4vmin; height: 6.4vmin; line-height: 6.4vmin; border-radius: 50%; }
+  .sun, th.sun { color: #ff7b72; }
+  .sat, th.sat { color: #79c0ff; }
+  td.hol { color: #ff7b72; }
+  td.other { opacity: 0.25; }
+  td.today span { background: #e8eaed; color: #0e1116; font-weight: 600; }
+  #holList { font-size: 2.4vmin; color: #c9d1d9; margin-top: 1.5vmin; line-height: 1.6; min-height: 2.4vmin; }
+  #holList b { color: #ff7b72; font-weight: normal; margin-right: 1vmin; }
+
+  #status { position: fixed; right: 3vmin; bottom: 1vmin; font-size: 1.8vmin; color: #4b535d; }
+
+  /* 縦置きのとき */
+  @media (orientation: portrait) {
+    #app { -webkit-flex-direction: column; flex-direction: column; }
+    .left { margin-right: 0; margin-bottom: 3vmin; }
+    #time { font-size: 24vmin; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="left">
+    <div class="clock">
+      <div id="time">--:--<span id="sec"></span></div>
+      <div id="date"></div>
+    </div>
+    <div class="card weather">
+      <div class="loc">📍 <span id="locName" title="タップで地域を変更">---</span></div>
+      <div class="wnow">
+        <div id="wicon">…</div>
+        <div id="wtemp">--<small>°C</small></div>
+        <div class="wmeta">
+          <div id="wdesc">読み込み中</div>
+          <div><span class="hi" id="whi">--</span> / <span class="lo" id="wlo">--</span>　💧<span id="wrain">--</span>%</div>
+
+          <div id="whum"></div>
+        </div>
+      </div>
+      <div class="fc" id="fc"></div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="card cal">
+      <div id="calTitle"></div>
+      <table id="calTable"></table>
+      <div id="holList"></div>
+    </div>
+  </div>
+</div>
+<div id="status"></div>
+
+<script>
+(function () {
+  var WD = ['日', '月', '火', '水', '木', '金', '土'];
+  var DEFAULT_LOC = { name: '東京', lat: 35.6895, lon: 139.6917 };
+  var NIGHT_FROM = 23, NIGHT_TO = 6; // この時間帯は画面を暗くする
+
+  function $(id) { return document.getElementById(id); }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function load(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  function getJSON(url, ok, ng) {
+    var x = new XMLHttpRequest();
+    x.open('GET', url, true);
+    x.timeout = 20000;
+    x.onload = function () {
+      if (x.status >= 200 && x.status < 300) {
+        var data;
+        try { data = JSON.parse(x.responseText); } catch (e) { if (ng) ng(e); return; }
+        ok(data);
+      } else if (ng) ng(x.status);
+    };
+    x.onerror = x.ontimeout = function () { if (ng) ng('network'); };
+    x.send();
+  }
+
+  var loc = load('loc', DEFAULT_LOC);
+  var holidays = load('holidays', {});
+  var lastDay = '';
+
+  // ---- 時計 ----
+  function tick() {
+    var now = new Date();
+    $('time').innerHTML = pad(now.getHours()) + ':' + pad(now.getMinutes()) +
+      '<span id="sec">' + pad(now.getSeconds()) + '</span>';
+
+    var h = now.getHours();
+    var night = NIGHT_FROM > NIGHT_TO ? (h >= NIGHT_FROM || h < NIGHT_TO) : (h >= NIGHT_FROM && h < NIGHT_TO);
+    document.body.className = night ? 'night' : '';
+
+    var key = ymd(now);
+    if (key !== lastDay) {
+      lastDay = key;
+      var hol = holidays[key];
+      $('date').innerHTML = now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日（' + WD[now.getDay()] + '）' +
+        (hol ? '<span class="hol">' + hol + '</span>' : '');
+      renderCalendar(now);
+    }
+  }
+
+  // ---- カレンダー ----
+  function renderCalendar(now) {
+    var y = now.getFullYear(), m = now.getMonth();
+    $('calTitle').innerHTML = (m + 1) + '月<small>' + y + '</small>';
+
+    var html = '<tr>';
+    for (var i = 0; i < 7; i++) html += '<th class="' + (i === 0 ? 'sun' : i === 6 ? 'sat' : '') + '">' + WD[i] + '</th>';
+    html += '</tr>';
+
+    var start = new Date(y, m, 1 - new Date(y, m, 1).getDay());
+    var todayKey = ymd(now);
+    var holList = [];
+    for (var w = 0; w < 6; w++) {
+      html += '<tr>';
+      for (var d = 0; d < 7; d++) {
+        var day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + d);
+        var k = ymd(day);
+        var cls = [];
+        if (d === 0) cls.push('sun');
+        if (d === 6) cls.push('sat');
+        if (holidays[k]) cls.push('hol');
+        if (day.getMonth() !== m) cls.push('other');
+        else if (holidays[k]) holList.push('<b>' + day.getDate() + '日</b>' + holidays[k]);
+        if (k === todayKey) cls.push('today');
+        html += '<td class="' + cls.join(' ') + '"><span>' + day.getDate() + '</span></td>';
+      }
+      html += '</tr>';
+      // 6週目が丸ごと翌月なら出さない
+      if (new Date(start.getFullYear(), start.getMonth(), start.getDate() + (w + 1) * 7).getMonth() !== m) break;
+    }
+    $('calTable').innerHTML = html;
+    $('holList').innerHTML = holList.join('　');
+  }
+
+  // ---- 祝日 ----
+  function updateHolidays() {
+    getJSON('https://holidays-jp.github.io/api/v1/date.json', function (data) {
+      holidays = data;
+      save('holidays', data);
+      lastDay = ''; // 次の tick で再描画
+    });
+  }
+
+  // ---- 天気（Open-Meteo, キー不要）----
+  var WCODE = {
+    0: ['☀️', '快晴'], 1: ['🌤', '晴れ'], 2: ['⛅️', '晴れ時々曇り'], 3: ['☁️', '曇り'],
+    45: ['🌫', '霧'], 48: ['🌫', '霧'],
+    51: ['🌦', '弱い霧雨'], 53: ['🌦', '霧雨'], 55: ['🌧', '強い霧雨'], 56: ['🌧', '着氷性の霧雨'], 57: ['🌧', '着氷性の霧雨'],
+    61: ['🌧', '小雨'], 63: ['🌧', '雨'], 65: ['🌧', '大雨'], 66: ['🌧', '着氷性の雨'], 67: ['🌧', '着氷性の雨'],
+    71: ['🌨', '小雪'], 73: ['🌨', '雪'], 75: ['❄️', '大雪'], 77: ['🌨', '霧雪'],
+    80: ['🌦', 'にわか雨'], 81: ['🌧', 'にわか雨'], 82: ['⛈', '激しいにわか雨'], 85: ['🌨', 'にわか雪'], 86: ['❄️', '強いにわか雪'],
+    95: ['⛈', '雷雨'], 96: ['⛈', '雷雨（ひょう）'], 99: ['⛈', '激しい雷雨']
+  };
+  function wc(code) { return WCODE[code] || ['❓', '不明']; }
+
+  function updateWeather() {
+    $('locName').innerHTML = loc.name;
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+      '&timezone=Asia%2FTokyo&forecast_days=6';
+    getJSON(url, function (w) {
+      var c = w.current, dl = w.daily;
+      var now = wc(c.weather_code);
+      $('wicon').innerHTML = now[0];
+      $('wdesc').innerHTML = now[1];
+      $('wtemp').innerHTML = Math.round(c.temperature_2m) + '<small>°C</small>';
+      $('whi').innerHTML = Math.round(dl.temperature_2m_max[0]) + '°';
+      $('wlo').innerHTML = Math.round(dl.temperature_2m_min[0]) + '°';
+      $('wrain').innerHTML = dl.precipitation_probability_max[0] == null ? '-' : dl.precipitation_probability_max[0];
+      $('whum').innerHTML = '体感 ' + Math.round(c.apparent_temperature) + '°　湿度 ' + c.relative_humidity_2m + '%';
+
+      var html = '';
+      for (var i = 1; i < dl.time.length; i++) {
+        var p = dl.time[i].split('-');
+        var day = new Date(+p[0], +p[1] - 1, +p[2]);
+        var cls = day.getDay() === 0 ? 'sun' : day.getDay() === 6 ? 'sat' : '';
+        if (holidays[dl.time[i]]) cls += ' hol';
+        var name = i === 1 ? '明日' : (day.getMonth() + 1) + '/' + day.getDate() + '(' + WD[day.getDay()] + ')';
+        var rain = dl.precipitation_probability_max[i];
+        html += '<div class="d ' + cls + '"><div class="n">' + name + '</div>' +
+          '<div class="i">' + wc(dl.weather_code[i])[0] + '</div>' +
+          '<div><span class="hi">' + Math.round(dl.temperature_2m_max[i]) + '°</span> <span class="lo">' + Math.round(dl.temperature_2m_min[i]) + '°</span></div>' +
+          '<div class="r">💧' + (rain == null ? '-' : rain) + '%</div></div>';
+      }
+      $('fc').innerHTML = html;
+      var t = new Date();
+      $('status').innerHTML = '天気 ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + ' 更新';
+    }, function () {
+      $('status').innerHTML = '天気の取得に失敗（再試行します）';
+    });
+  }
+
+  // 地域名をタップすると変更できる
+  $('locName').onclick = function () {
+    var q = window.prompt('地域名を入力（例：横浜、札幌市、大阪）', loc.name);
+    if (!q) return;
+    getJSON('https://geocoding-api.open-meteo.com/v1/search?count=1&language=ja&name=' + encodeURIComponent(q), function (r) {
+      if (!r.results || !r.results.length) { window.alert('「' + q + '」が見つかりませんでした'); return; }
+      var g = r.results[0];
+      loc = { name: g.name, lat: g.latitude, lon: g.longitude };
+      save('loc', loc);
+      updateWeather();
+    }, function () { window.alert('検索に失敗しました'); });
+  };
+
+  tick();
+  setInterval(tick, 1000);
+  updateHolidays();
+  updateWeather();
+  setInterval(updateWeather, 30 * 60 * 1000);   // 30分ごと
+  setInterval(updateHolidays, 24 * 60 * 60 * 1000);
+  // 長時間つけっぱなしでも重くならないよう、毎日 4 時台に一度だけページを読み直す
+  setInterval(function () {
+    var n = new Date();
+    if (n.getHours() === 4 && n.getMinutes() === 0) location.reload();
+  }, 60 * 1000);
+})();
+</script>
+</body>
+</html>
