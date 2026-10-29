@@ -190,6 +190,8 @@
 
 <script>
 (function () {
+  // 変更を公開するたびに必ず書き換える。iPad 側はこれを見て新しい版に切り替わる（checkUpdate）
+  var BUILD = '2026-10-29.2';
   var WD = ['日', '月', '火', '水', '木', '金', '土'];
   var DEFAULT_LOC = { name: '東京', lat: 35.6895, lon: 139.6917 };
   var NIGHT_FROM = 23, NIGHT_TO = 6; // この時間帯は画面を暗くする
@@ -379,7 +381,7 @@
       $('hr').innerHTML = html;
       fitCalendar(); // 天気が入ると縦置きでは上の段が伸びるので測り直す
       var t = new Date();
-      $('status').innerHTML = '天気 ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + ' 更新';
+      $('status').innerHTML = '天気 ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + ' 更新　v' + BUILD;
     }, function () {
       $('status').innerHTML = '天気の取得に失敗（再試行します）';
     });
@@ -496,6 +498,32 @@
     var n = new Date();
     if (n.getHours() === 4 && n.getMinutes() === 0) location.reload();
   }, 60 * 1000);
+
+  // ---- 新しい版が公開されていたら切り替える ----
+  // ホーム画面から開いたページは閉じても一時停止しているだけのことがあり、
+  // GitHub Pages も 10 分キャッシュさせるので、普通の再読み込みでは古いままになりやすい。
+  // そこで毎回違う URL で自分自身を取りに行って BUILD を比べ、違えば新しい URL で開き直す。
+  function checkUpdate() {
+    var x = new XMLHttpRequest();
+    x.open('GET', location.pathname + '?t=' + Date.now(), true);
+    x.timeout = 20000;
+    x.onload = function () {
+      if (x.status !== 200) return;
+      var m = /var BUILD = '([^']+)'/.exec(x.responseText);
+      if (!m || m[1] === BUILD) return;
+      // 同じ版へ切り替え済みなのにまだ古いなら、何度も開き直さない
+      if (location.search.indexOf('v=' + m[1]) !== -1) return;
+      location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]));
+    };
+    x.send();
+  }
+  setTimeout(checkUpdate, 3000);
+  setInterval(checkUpdate, 10 * 60 * 1000);
+  // ホーム画面から開き直したとき（一時停止からの復帰）にも確認する
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) checkUpdate();
+  }, false);
+  window.addEventListener('pageshow', function (e) { if (e.persisted) checkUpdate(); }, false);
 })();
 </script>
 </body>
