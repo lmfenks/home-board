@@ -66,8 +66,9 @@
   #calTitle small { font-size: 2.6vmin; color: #7d8590; margin-left: 1vmin; }
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   th { font-size: 2.4vmin; font-weight: normal; color: #7d8590; padding-bottom: 0.5vmin; }
-  td { text-align: center; font-size: 3.2vmin; font-variant-numeric: tabular-nums; padding: 0.3vmin 0; }
-  td span { display: inline-block; width: 5.6vmin; height: 5.6vmin; line-height: 5.6vmin; border-radius: 50%; }
+  /* --cell は高さが足りないときに JS（fitCalendar）が縮める */
+  td { text-align: center; font-size: calc(var(--cell, 5.6vmin) * 0.57); font-variant-numeric: tabular-nums; padding: 0.3vmin 0; }
+  td span { display: inline-block; width: var(--cell, 5.6vmin); height: var(--cell, 5.6vmin); line-height: var(--cell, 5.6vmin); border-radius: 50%; }
   .sun, th.sun { color: #ff7b72; }
   .sat, th.sat { color: #79c0ff; }
   td.hol { color: #ff7b72; }
@@ -112,8 +113,19 @@
   /* 縦置きのとき */
   @media (orientation: portrait) {
     #app { -webkit-flex-direction: column; flex-direction: column; }
-    .left { margin-right: 0; margin-bottom: 3vmin; }
-    #time { font-size: 24vmin; }
+    /* 縦は高さが足りないので、時計を少し小さくし、時間別予報と祝日一覧は出さない
+       （祝日はカレンダーの赤字と、当日の日付の横に出る） */
+    #holList { display: none; }
+    .left { margin-right: 0; margin-bottom: 3vmin; -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+    .right { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-height: 0; }
+    .clock { padding-top: 0; padding-bottom: 2vmin; }
+    #time { font-size: 15vmin; }
+    #date { margin-top: 1vmin; font-size: 4vmin; }
+    .loc { margin-bottom: 0.5vmin; }
+    .fc { margin-top: 1.5vmin; padding-top: 1.5vmin; }
+    .fc .d { line-height: 1.3; }
+    .fc .d .i { font-size: 4vmin; }
+    .hourly { display: none; }
     #btime { font-size: 22vmin; }
     .bw { -webkit-flex-direction: column; flex-direction: column; -webkit-align-items: center; align-items: center; }
     .bw .d { margin: 1.5vmin 0; }
@@ -254,6 +266,18 @@
     }
     $('calTable').innerHTML = html;
     $('holList').innerHTML = holList.join('　');
+    fitCalendar();
+  }
+
+  // カレンダーが右（縦置きなら下）の枠からはみ出すなら、マス目を少しずつ縮める
+  function fitCalendar() {
+    var root = document.documentElement, size = 5.6;
+    var box = document.querySelector('.right'), cal = document.querySelector('.cal');
+    root.style.setProperty('--cell', size + 'vmin');
+    while (size > 3 && cal.getBoundingClientRect().bottom > box.getBoundingClientRect().bottom + 0.5) {
+      size -= 0.2;
+      root.style.setProperty('--cell', size + 'vmin');
+    }
   }
 
   // ---- 祝日 ----
@@ -344,6 +368,7 @@
           '<div class="w' + (hr.wind_speed_10m[idx] >= STRONG_WIND ? ' strong' : '') + '">' + Math.round(hr.wind_speed_10m[idx]) + 'm/s</div></div>';
       }
       $('hr').innerHTML = html;
+      fitCalendar(); // 天気が入ると縦置きでは上の段が伸びるので測り直す
       var t = new Date();
       $('status').innerHTML = '天気 ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + ' 更新';
     }, function () {
@@ -390,6 +415,8 @@
   dotEls[0].onclick = function () { showPage(0); };
   dotEls[1].onclick = function () { showPage(1); };
   showPage(page);
+  // 向きを変えたら測り直す（回転直後はサイズが確定していないので少し待つ）
+  window.addEventListener('resize', function () { setTimeout(fitCalendar, 300); }, false);
 
   tick();
   setInterval(tick, 1000);
