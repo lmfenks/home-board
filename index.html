@@ -7,7 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="ホーム">
 <title>ホームボード</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap">
+<!-- 時計用フォント。ブラウザは実際に使うものだけをダウンロードする -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300&family=Orbitron:wght@500&family=Outfit:wght@200&family=Share+Tech+Mono&display=swap">
 <!--
   iPad mini 2 (iOS 12 / Safari 12) 向け。
   古い Safari でも動くように、JS は ES5、CSS は flex の gap などを使わずに書いている。
@@ -33,10 +34,10 @@
 
   /* 時計 */
   .clock { padding-top: 1vmin; padding-bottom: 3vmin; }
-  /* 時計の数字は Bebas Neue。読めないときは iOS 内蔵の DIN Condensed */
-  .digits { font-family: "Bebas Neue", "DIN Condensed", "Arial Narrow", sans-serif; font-weight: normal; letter-spacing: 0.02em; }
+  /* 時計の数字。既定は Bebas Neue で、時計をタップすると JS（FONTS）で切り替わる */
+  .digits { font-family: "Bebas Neue", "DIN Condensed", "Arial Narrow", sans-serif; font-weight: normal; letter-spacing: 0.02em; cursor: pointer; }
   #time { font-size: 19vmin; line-height: 0.95; white-space: nowrap; }
-  #sec { font-size: 7vmin; color: #7d8590; margin-left: 1.2vmin; }
+  #sec { font-size: 0.37em; color: #7d8590; margin-left: 0.06em; } /* 時計本体と一緒に縮むよう em で指定 */
   #date { font-size: 4.6vmin; margin-top: 1.5vmin; color: #c9d1d9; }
   #date .hol { color: #ff7b72; font-size: 3.4vmin; margin-left: 1.5vmin; }
 
@@ -92,6 +93,9 @@
   #hr .h .w.strong { color: #ffa657; }
 
   #status { position: fixed; right: 3vmin; bottom: 1vmin; font-size: 1.8vmin; color: #4b535d; }
+  #toast { position: fixed; left: 50%; top: 4vmin; -webkit-transform: translateX(-50%); transform: translateX(-50%); background: rgba(40, 46, 56, 0.92); color: #e8eaed; font-size: 3vmin; padding: 1.5vmin 3vmin; border-radius: 4vmin; white-space: nowrap; opacity: 0; -webkit-transition: opacity 0.3s; transition: opacity 0.3s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  #toast small { color: #7d8590; font-size: 2.2vmin; margin-left: 1.5vmin; }
 
   /* 2 ページを横に並べ、スワイプで translate して切り替える */
   #viewport { height: 100%; overflow: hidden; }
@@ -105,7 +109,7 @@
   /* 大きい時計のページ */
   #big { height: 100%; box-sizing: border-box; padding: 2vmin 3vmin 5vmin; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; -webkit-justify-content: center; justify-content: center; text-align: center; }
   #btime { font-size: 50vmin; line-height: 0.9; white-space: nowrap; }
-  #bsec { font-size: 13vmin; color: #7d8590; margin-left: 2vmin; }
+  #bsec { font-size: 0.26em; color: #7d8590; margin-left: 0.04em; }
   #bdate { font-size: 7.5vmin; color: #c9d1d9; margin-top: 1vmin; }
   #bdate .hol { color: #ff7b72; font-size: 5.5vmin; margin-left: 2vmin; }
   .bw { display: -webkit-flex; display: flex; -webkit-justify-content: center; justify-content: center; margin-top: 4vmin; }
@@ -130,7 +134,6 @@
     .fc .d .i { font-size: 4vmin; }
     .hourly { display: none; }
     #btime { font-size: 40vmin; }
-    #bsec { font-size: 10vmin; }
     .bw { -webkit-flex-direction: column; flex-direction: column; -webkit-align-items: center; align-items: center; }
     .bw .d { margin: 1.5vmin 0; }
   }
@@ -183,6 +186,7 @@
 </div></div>
 <div id="dots"><i class="on"></i><i></i></div>
 <div id="status"></div>
+<div id="toast"></div>
 
 <script>
 (function () {
@@ -213,7 +217,7 @@
 
   var loc = load('loc', DEFAULT_LOC);
   var holidays = load('holidays', {});
-  var lastDay = '';
+  var lastDay = '', lastMin = -1;
 
   // ---- 時計 ----
   function tick() {
@@ -222,6 +226,7 @@
       '<span id="sec">' + pad(now.getSeconds()) + '</span>';
     $('btime').innerHTML = pad(now.getHours()) + ':' + pad(now.getMinutes()) +
       '<span id="bsec">' + pad(now.getSeconds()) + '</span>';
+    if (now.getMinutes() !== lastMin) { lastMin = now.getMinutes(); fitClocks(); }
 
     var h = now.getHours();
     var night = NIGHT_FROM > NIGHT_TO ? (h >= NIGHT_FROM || h < NIGHT_TO) : (h >= NIGHT_FROM && h < NIGHT_TO);
@@ -419,6 +424,64 @@
   dotEls[0].onclick = function () { showPage(0); };
   dotEls[1].onclick = function () { showPage(1); };
   showPage(page);
+
+  // ---- 時計のフォント（時計をタップで順に切り替え）----
+  var FONTS = [
+    { name: 'Bebas Neue', family: '"Bebas Neue", "DIN Condensed", sans-serif', weight: 'normal' },
+    { name: 'Oswald', family: '"Oswald", "DIN Condensed", sans-serif', weight: '300' },
+    { name: 'Orbitron', family: '"Orbitron", sans-serif', weight: '500' },
+    { name: 'Outfit', family: '"Outfit", -apple-system, sans-serif', weight: '200' },
+    { name: 'Share Tech Mono', family: '"Share Tech Mono", Menlo, monospace', weight: 'normal' },
+    { name: 'DIN Condensed（内蔵）', family: '"DIN Condensed", "Arial Narrow", sans-serif', weight: 'bold' },
+    { name: 'システム細字（内蔵）', family: '-apple-system, "Helvetica Neue", sans-serif', weight: '200' }
+  ];
+  var fontIdx = load('font', 0);
+  if (!FONTS[fontIdx]) fontIdx = 0;
+  var toastTimer = null;
+
+  function applyFont(showName) {
+    var f = FONTS[fontIdx];
+    var els = [$('time'), $('btime')];
+    for (var i = 0; i < els.length; i++) {
+      els[i].style.fontFamily = f.family;
+      els[i].style.fontWeight = f.weight;
+    }
+    fitClocks();
+    // フォントのダウンロードが終わると幅が変わるので、読み込み後にもう一度合わせる
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load(f.weight + ' 100px ' + f.family).then(fitClocks, fitClocks);
+    }
+    if (showName) {
+      $('toast').innerHTML = f.name + '<small>' + (fontIdx + 1) + ' / ' + FONTS.length + '</small>';
+      $('toast').className = 'show';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { $('toast').className = ''; }, 1800);
+    }
+  }
+  function nextFont() {
+    fontIdx = (fontIdx + 1) % FONTS.length;
+    save('font', fontIdx);
+    applyFont(true);
+  }
+  $('time').onclick = nextFont;
+  $('btime').onclick = nextFont;
+
+  // フォントによって横幅がかなり違うので、はみ出すときだけ文字を縮める
+  function fitClocks() {
+    var els = [$('time'), $('btime')];
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      el.style.fontSize = '';
+      var r = document.createRange();
+      r.selectNodeContents(el);
+      var w = r.getBoundingClientRect().width, avail = el.clientWidth * 0.94;
+      if (w > avail) {
+        el.style.fontSize = (parseFloat(window.getComputedStyle(el).fontSize) * avail / w) + 'px';
+      }
+    }
+  }
+  window.addEventListener('resize', function () { setTimeout(fitClocks, 300); }, false);
+  applyFont(false);
   // 向きを変えたら測り直す（回転直後はサイズが確定していないので少し待つ）
   window.addEventListener('resize', function () { setTimeout(fitCalendar, 300); }, false);
 
