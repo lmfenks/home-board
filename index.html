@@ -89,16 +89,40 @@
 
   #status { position: fixed; right: 3vmin; bottom: 1vmin; font-size: 1.8vmin; color: #4b535d; }
 
+  /* 2 ページを横に並べ、スワイプで translate して切り替える */
+  #viewport { height: 100%; overflow: hidden; }
+  #pages { display: -webkit-flex; display: flex; width: 200%; height: 100%; -webkit-transition: -webkit-transform 0.4s ease; transition: transform 0.4s ease; }
+  #pages.p1 { -webkit-transform: translateX(-50%); transform: translateX(-50%); }
+  .page { -webkit-flex: 0 0 50%; flex: 0 0 50%; width: 50%; }
+  #dots { position: fixed; left: 0; right: 0; bottom: 1.2vmin; text-align: center; line-height: 0; }
+  #dots i { display: inline-block; width: 1.4vmin; height: 1.4vmin; border-radius: 50%; background: #39414c; margin: 0 0.8vmin; }
+  #dots i.on { background: #c9d1d9; }
+
+  /* 大きい時計のページ */
+  #big { height: 100%; box-sizing: border-box; padding: 4vmin 5vmin 6vmin; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; -webkit-justify-content: center; justify-content: center; text-align: center; }
+  #btime { font-size: 28vmin; font-weight: 200; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #bsec { font-size: 7vmin; color: #7d8590; margin-left: 1.5vmin; font-weight: 300; }
+  #bdate { font-size: 5.4vmin; color: #c9d1d9; margin-top: 2vmin; }
+  #bdate .hol { color: #ff7b72; font-size: 4vmin; margin-left: 1.5vmin; }
+  .bw { display: -webkit-flex; display: flex; -webkit-justify-content: center; justify-content: center; margin-top: 6vmin; }
+  .bw .d { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin: 0 4vmin; font-size: 3vmin; color: #c9d1d9; text-align: left; line-height: 1.45; }
+  .bw .d .i { font-size: 7vmin; line-height: 1; margin-right: 2vmin; }
+  .bw .d .n { color: #7d8590; font-size: 2.6vmin; }
+
   /* 縦置きのとき */
   @media (orientation: portrait) {
     #app { -webkit-flex-direction: column; flex-direction: column; }
     .left { margin-right: 0; margin-bottom: 3vmin; }
     #time { font-size: 24vmin; }
+    #btime { font-size: 22vmin; }
+    .bw { -webkit-flex-direction: column; flex-direction: column; -webkit-align-items: center; align-items: center; }
+    .bw .d { margin: 1.5vmin 0; }
   }
 </style>
 </head>
 <body>
-<div id="app">
+<div id="viewport"><div id="pages">
+<div id="app" class="page">
   <div class="left">
     <div class="clock">
       <div id="time">--:--<span id="sec"></span></div>
@@ -132,6 +156,16 @@
     </div>
   </div>
 </div>
+<div id="big" class="page">
+  <div id="btime">--:--</div>
+  <div id="bdate"></div>
+  <div class="bw">
+    <div class="d"><div class="i" id="b0i">…</div><div><div class="n">今日</div><div id="b0"></div></div></div>
+    <div class="d"><div class="i" id="b1i">…</div><div><div class="n">明日</div><div id="b1"></div></div></div>
+  </div>
+</div>
+</div></div>
+<div id="dots"><i class="on"></i><i></i></div>
 <div id="status"></div>
 
 <script>
@@ -170,6 +204,8 @@
     var now = new Date();
     $('time').innerHTML = pad(now.getHours()) + ':' + pad(now.getMinutes()) +
       '<span id="sec">' + pad(now.getSeconds()) + '</span>';
+    $('btime').innerHTML = pad(now.getHours()) + ':' + pad(now.getMinutes()) +
+      '<span id="bsec">' + pad(now.getSeconds()) + '</span>';
 
     var h = now.getHours();
     var night = NIGHT_FROM > NIGHT_TO ? (h >= NIGHT_FROM || h < NIGHT_TO) : (h >= NIGHT_FROM && h < NIGHT_TO);
@@ -179,7 +215,8 @@
     if (key !== lastDay) {
       lastDay = key;
       var hol = holidays[key];
-      $('date').innerHTML = now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日（' + WD[now.getDay()] + '）' +
+      $('date').innerHTML = $('bdate').innerHTML =
+        now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日（' + WD[now.getDay()] + '）' +
         (hol ? '<span class="hol">' + hol + '</span>' : '');
       renderCalendar(now);
     }
@@ -282,6 +319,15 @@
       }
       $('fc').innerHTML = html;
 
+      // 大きい時計のページ用：今日と明日
+      for (var b = 0; b < 2; b++) {
+        var bp = dl.precipitation_probability_max[b];
+        $('b' + b + 'i').innerHTML = wc(dl.weather_code[b])[0];
+        $('b' + b).innerHTML = wc(dl.weather_code[b])[1] + '<br>' +
+          '<span class="hi">' + Math.round(dl.temperature_2m_max[b]) + '°</span> / <span class="lo">' + Math.round(dl.temperature_2m_min[b]) + '°</span>' +
+          '　💧' + (bp == null ? '-' : bp) + '%';
+      }
+
       // 時間別：現在の時刻から 2 時間ごとに 7 コマ
       var hr = w.hourly, start = 0, curHour = c.time.slice(0, 13);
       for (var j = 0; j < hr.time.length; j++) { if (hr.time[j].slice(0, 13) === curHour) { start = j; break; } }
@@ -317,6 +363,33 @@
       updateWeather();
     }, function () { window.alert('検索に失敗しました'); });
   };
+
+  // ---- ページ切り替え（左右スワイプ、または下の点をタップ）----
+  var page = load('page', 0);
+  function showPage(p) {
+    page = p;
+    $('pages').className = p === 1 ? 'p1' : '';
+    var dots = $('dots').getElementsByTagName('i');
+    for (var i = 0; i < dots.length; i++) dots[i].className = i === p ? 'on' : '';
+    save('page', p);
+  }
+  var sx = null, sy = null;
+  document.addEventListener('touchstart', function (e) {
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+  }, false);
+  document.addEventListener('touchend', function (e) {
+    if (sx === null) return;
+    var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    sx = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+    showPage(dx < 0 ? 1 : 0);
+  }, false);
+  // iOS の画面全体が引っぱられて揺れるのを止める
+  document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+  var dotEls = $('dots').getElementsByTagName('i');
+  dotEls[0].onclick = function () { showPage(0); };
+  dotEls[1].onclick = function () { showPage(1); };
+  showPage(page);
 
   tick();
   setInterval(tick, 1000);
