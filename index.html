@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="ホーム">
 <title>ホームボード</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap">
 <!--
   iPad mini 2 (iOS 12 / Safari 12) 向け。
   古い Safari でも動くように、JS は ES5、CSS は flex の gap などを使わずに書いている。
@@ -32,8 +33,10 @@
 
   /* 時計 */
   .clock { padding-top: 1vmin; padding-bottom: 3vmin; }
-  #time { font-size: 19vmin; font-weight: 200; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  #sec { font-size: 6vmin; color: #7d8590; margin-left: 1vmin; font-weight: 300; }
+  /* 時計の数字は Bebas Neue。読めないときは iOS 内蔵の DIN Condensed */
+  .digits { font-family: "Bebas Neue", "DIN Condensed", "Arial Narrow", sans-serif; font-weight: normal; letter-spacing: 0.02em; }
+  #time { font-size: 19vmin; line-height: 0.95; white-space: nowrap; }
+  #sec { font-size: 7vmin; color: #7d8590; margin-left: 1.2vmin; }
   #date { font-size: 4.6vmin; margin-top: 1.5vmin; color: #c9d1d9; }
   #date .hol { color: #ff7b72; font-size: 3.4vmin; margin-left: 1.5vmin; }
 
@@ -100,15 +103,15 @@
   #dots i.on { background: #c9d1d9; }
 
   /* 大きい時計のページ */
-  #big { height: 100%; box-sizing: border-box; padding: 4vmin 5vmin 6vmin; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; -webkit-justify-content: center; justify-content: center; text-align: center; }
-  #btime { font-size: 28vmin; font-weight: 200; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  #bsec { font-size: 7vmin; color: #7d8590; margin-left: 1.5vmin; font-weight: 300; }
-  #bdate { font-size: 5.4vmin; color: #c9d1d9; margin-top: 2vmin; }
-  #bdate .hol { color: #ff7b72; font-size: 4vmin; margin-left: 1.5vmin; }
-  .bw { display: -webkit-flex; display: flex; -webkit-justify-content: center; justify-content: center; margin-top: 6vmin; }
-  .bw .d { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin: 0 4vmin; font-size: 3vmin; color: #c9d1d9; text-align: left; line-height: 1.45; }
-  .bw .d .i { font-size: 7vmin; line-height: 1; margin-right: 2vmin; }
-  .bw .d .n { color: #7d8590; font-size: 2.6vmin; }
+  #big { height: 100%; box-sizing: border-box; padding: 2vmin 3vmin 5vmin; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; -webkit-justify-content: center; justify-content: center; text-align: center; }
+  #btime { font-size: 50vmin; line-height: 0.9; white-space: nowrap; }
+  #bsec { font-size: 13vmin; color: #7d8590; margin-left: 2vmin; }
+  #bdate { font-size: 7.5vmin; color: #c9d1d9; margin-top: 1vmin; }
+  #bdate .hol { color: #ff7b72; font-size: 5.5vmin; margin-left: 2vmin; }
+  .bw { display: -webkit-flex; display: flex; -webkit-justify-content: center; justify-content: center; margin-top: 4vmin; }
+  .bw .d { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin: 0 5vmin; font-size: 4.5vmin; color: #c9d1d9; text-align: left; line-height: 1.4; }
+  .bw .d .i { font-size: 11vmin; line-height: 1; margin-right: 2.5vmin; }
+  .bw .d .n { color: #7d8590; font-size: 3.6vmin; }
 
   /* 縦置きのとき */
   @media (orientation: portrait) {
@@ -126,7 +129,8 @@
     .fc .d { line-height: 1.3; }
     .fc .d .i { font-size: 4vmin; }
     .hourly { display: none; }
-    #btime { font-size: 22vmin; }
+    #btime { font-size: 40vmin; }
+    #bsec { font-size: 10vmin; }
     .bw { -webkit-flex-direction: column; flex-direction: column; -webkit-align-items: center; align-items: center; }
     .bw .d { margin: 1.5vmin 0; }
   }
@@ -137,7 +141,7 @@
 <div id="app" class="page">
   <div class="left">
     <div class="clock">
-      <div id="time">--:--<span id="sec"></span></div>
+      <div id="time" class="digits">--:--<span id="sec"></span></div>
       <div id="date"></div>
     </div>
     <div class="card weather">
@@ -169,7 +173,7 @@
   </div>
 </div>
 <div id="big" class="page">
-  <div id="btime">--:--</div>
+  <div id="btime" class="digits">--:--</div>
   <div id="bdate"></div>
   <div class="bw">
     <div class="d"><div class="i" id="b0i">…</div><div><div class="n">今日</div><div id="b0"></div></div></div>
