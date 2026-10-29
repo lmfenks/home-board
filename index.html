@@ -36,6 +36,10 @@
   .clock { padding-top: 1vmin; padding-bottom: 3vmin; }
   /* 時計の数字。既定は Bebas Neue で、時計をタップすると JS（FONTS）で切り替わる */
   .digits { font-family: "Bebas Neue", "DIN Condensed", "Arial Narrow", sans-serif; font-weight: normal; letter-spacing: 0.02em; cursor: pointer; }
+  /* 数字ごとに幅が違うと秒が進むたびに左右へ揺れるので、1 文字ずつ同じ幅の箱に入れる。
+     --dgw はその書体で一番太い数字の幅（measureDigits が測る） */
+  .digits i { font-style: normal; display: inline-block; text-align: center; }
+  .digits i.dg { width: var(--dgw, 0.6em); }
   #time { font-size: 19vmin; line-height: 0.95; white-space: nowrap; }
   #sec { font-size: 0.37em; color: #7d8590; margin-left: 0.06em; } /* 時計本体と一緒に縮むよう em で指定 */
   #date { font-size: 4.6vmin; margin-top: 1.5vmin; color: #c9d1d9; }
@@ -191,13 +195,18 @@
 <script>
 (function () {
   // 変更を公開するたびに必ず書き換える。iPad 側はこれを見て新しい版に切り替わる（checkUpdate）
-  var BUILD = '2026-10-29.2';
+  var BUILD = '2026-10-29.3';
   var WD = ['日', '月', '火', '水', '木', '金', '土'];
   var DEFAULT_LOC = { name: '東京', lat: 35.6895, lon: 139.6917 };
   var NIGHT_FROM = 23, NIGHT_TO = 6; // この時間帯は画面を暗くする
 
   function $(id) { return document.getElementById(id); }
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function boxDigits(s) {
+    var out = '';
+    for (var i = 0; i < s.length; i++) out += '<i class="' + (s.charAt(i) === ':' ? 'cl' : 'dg') + '">' + s.charAt(i) + '</i>';
+    return out;
+  }
   function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   function load(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
   function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -224,10 +233,9 @@
   // ---- 時計 ----
   function tick() {
     var now = new Date();
-    $('time').innerHTML = pad(now.getHours()) + ':' + pad(now.getMinutes()) +
-      '<span id="sec">' + pad(now.getSeconds()) + '</span>';
-    $('btime').innerHTML = pad(now.getHours()) + ':' + pad(now.getMinutes()) +
-      '<span id="bsec">' + pad(now.getSeconds()) + '</span>';
+    var hm = boxDigits(pad(now.getHours()) + ':' + pad(now.getMinutes())), ss = boxDigits(pad(now.getSeconds()));
+    $('time').innerHTML = hm + '<span id="sec">' + ss + '</span>';
+    $('btime').innerHTML = hm + '<span id="bsec">' + ss + '</span>';
     if (now.getMinutes() !== lastMin) { lastMin = now.getMinutes(); fitClocks(); }
 
     var h = now.getHours();
@@ -448,10 +456,10 @@
       els[i].style.fontFamily = f.family;
       els[i].style.fontWeight = f.weight;
     }
-    fitClocks();
-    // フォントのダウンロードが終わると幅が変わるので、読み込み後にもう一度合わせる
+    measureDigits();
+    // フォントのダウンロードが終わると幅が変わるので、読み込み後にもう一度測る
     if (document.fonts && document.fonts.load) {
-      document.fonts.load(f.weight + ' 100px ' + f.family).then(fitClocks, fitClocks);
+      document.fonts.load(f.weight + ' 100px ' + f.family).then(measureDigits, measureDigits);
     }
     if (showName) {
       $('toast').innerHTML = f.name + '<small>' + (fontIdx + 1) + ' / ' + FONTS.length + '</small>';
@@ -467,6 +475,22 @@
   }
   $('time').onclick = nextFont;
   $('btime').onclick = nextFont;
+
+  // 今の書体で 0〜9 のうち一番太い数字の幅を測り、数字の箱の幅（--dgw）にする
+  function measureDigits() {
+    var f = FONTS[fontIdx], probe = document.createElement('span'), max = 0;
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font-size:100px;letter-spacing:0.02em;';
+    probe.style.fontFamily = f.family;
+    probe.style.fontWeight = f.weight;
+    document.body.appendChild(probe);
+    for (var d = 0; d <= 9; d++) {
+      probe.innerHTML = '' + d;
+      max = Math.max(max, probe.getBoundingClientRect().width);
+    }
+    document.body.removeChild(probe);
+    document.documentElement.style.setProperty('--dgw', (max / 100) + 'em');
+    fitClocks();
+  }
 
   // フォントによって横幅がかなり違うので、はみ出すときだけ文字を縮める
   function fitClocks() {
