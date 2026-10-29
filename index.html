@@ -45,7 +45,8 @@
   #wtemp small { font-size: 3.6vmin; color: #7d8590; }
   .wmeta { margin-left: 3vmin; font-size: 2.6vmin; color: #c9d1d9; line-height: 1.55; white-space: nowrap; min-width: 0; }
   #wdesc { font-size: 3.4vmin; color: #e8eaed; }
-  #whum { color: #7d8590; }
+  #whum, #wwind { color: #7d8590; }
+  #wwind.strong { color: #ffa657; }
   .hi { color: #ff9e64; } .lo { color: #79c0ff; }
   .loc { font-size: 2.4vmin; color: #7d8590; margin-bottom: 1.5vmin; }
   .loc span { border-bottom: 1px dotted #7d8590; }
@@ -58,13 +59,15 @@
   .fc .d.sat .n { color: #79c0ff; }
 
   /* カレンダー */
-  .cal { -webkit-flex: 1 1 auto; flex: 1 1 auto; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
-  #calTitle { font-size: 4.2vmin; margin-bottom: 1.5vmin; }
+  /* 古い Safari は flex 内の table を縦に伸ばせないので、カレンダーは固定サイズにして
+     残りの高さは下の時間別予報に任せる */
+  .cal { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+  #calTitle { font-size: 4.2vmin; margin-bottom: 1vmin; }
   #calTitle small { font-size: 2.6vmin; color: #7d8590; margin-left: 1vmin; }
-  table { width: 100%; border-collapse: collapse; table-layout: fixed; -webkit-flex: 1 1 auto; flex: 1 1 auto; }
-  th { font-size: 2.4vmin; font-weight: normal; color: #7d8590; padding-bottom: 1vmin; }
-  td { text-align: center; font-size: 3.4vmin; font-variant-numeric: tabular-nums; }
-  td span { display: inline-block; width: 6.4vmin; height: 6.4vmin; line-height: 6.4vmin; border-radius: 50%; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th { font-size: 2.4vmin; font-weight: normal; color: #7d8590; padding-bottom: 0.5vmin; }
+  td { text-align: center; font-size: 3.2vmin; font-variant-numeric: tabular-nums; padding: 0.3vmin 0; }
+  td span { display: inline-block; width: 5.6vmin; height: 5.6vmin; line-height: 5.6vmin; border-radius: 50%; }
   .sun, th.sun { color: #ff7b72; }
   .sat, th.sat { color: #79c0ff; }
   td.hol { color: #ff7b72; }
@@ -72,6 +75,17 @@
   td.today span { background: #e8eaed; color: #0e1116; font-weight: 600; }
   #holList { font-size: 2.4vmin; color: #c9d1d9; margin-top: 1.5vmin; line-height: 1.6; min-height: 2.4vmin; }
   #holList b { color: #ff7b72; font-weight: normal; margin-right: 1vmin; }
+
+  /* 時間別予報 */
+  .hourly { -webkit-flex: 1 1 auto; flex: 1 1 auto; margin-top: 3vmin; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; }
+  .hourly .ttl { font-size: 2.4vmin; color: #7d8590; }
+  #hr { -webkit-flex: 1 1 auto; flex: 1 1 auto; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+  #hr .h { -webkit-flex: 1 1 0; flex: 1 1 0; text-align: center; font-size: 2.5vmin; line-height: 1.4; }
+  #hr .h .t { color: #7d8590; }
+  #hr .h .i { font-size: 4.4vmin; line-height: 1.3; }
+  #hr .h .r { color: #79c0ff; font-size: 2.2vmin; }
+  #hr .h .w { color: #7d8590; font-size: 2.2vmin; }
+  #hr .h .w.strong { color: #ffa657; }
 
   #status { position: fixed; right: 3vmin; bottom: 1vmin; font-size: 1.8vmin; color: #4b535d; }
 
@@ -100,6 +114,7 @@
           <div><span class="hi" id="whi">--</span> / <span class="lo" id="wlo">--</span>　💧<span id="wrain">--</span>%</div>
 
           <div id="whum"></div>
+          <div id="wwind"></div>
         </div>
       </div>
       <div class="fc" id="fc"></div>
@@ -110,6 +125,10 @@
       <div id="calTitle"></div>
       <table id="calTable"></table>
       <div id="holList"></div>
+    </div>
+    <div class="card hourly">
+      <div class="ttl">これからの天気（2時間ごと）</div>
+      <div id="hr"></div>
     </div>
   </div>
 </div>
@@ -221,10 +240,17 @@
   };
   function wc(code) { return WCODE[code] || ['❓', '不明']; }
 
+  // 風向（度）→ 16方位。風速 10m/s 以上は「強い」として色を変える
+  var DIRS = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+  var STRONG_WIND = 10;
+  function dirName(deg) { return DIRS[Math.round(deg / 22.5) % 16]; }
+
   function updateWeather() {
     $('locName').innerHTML = loc.name;
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon +
-      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code' +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
+      '&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m' +
+      '&wind_speed_unit=ms' +
       '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
       '&timezone=Asia%2FTokyo&forecast_days=6';
     getJSON(url, function (w) {
@@ -237,6 +263,9 @@
       $('wlo').innerHTML = Math.round(dl.temperature_2m_min[0]) + '°';
       $('wrain').innerHTML = dl.precipitation_probability_max[0] == null ? '-' : dl.precipitation_probability_max[0];
       $('whum').innerHTML = '体感 ' + Math.round(c.apparent_temperature) + '°　湿度 ' + c.relative_humidity_2m + '%';
+      $('wwind').innerHTML = '風 ' + dirName(c.wind_direction_10m) + ' ' + Math.round(c.wind_speed_10m) + 'm/s' +
+        '（最大 ' + Math.round(c.wind_gusts_10m) + '）';
+      $('wwind').className = c.wind_speed_10m >= STRONG_WIND ? 'strong' : '';
 
       var html = '';
       for (var i = 1; i < dl.time.length; i++) {
@@ -252,6 +281,23 @@
           '<div class="r">💧' + (rain == null ? '-' : rain) + '%</div></div>';
       }
       $('fc').innerHTML = html;
+
+      // 時間別：現在の時刻から 2 時間ごとに 7 コマ
+      var hr = w.hourly, start = 0, curHour = c.time.slice(0, 13);
+      for (var j = 0; j < hr.time.length; j++) { if (hr.time[j].slice(0, 13) === curHour) { start = j; break; } }
+      html = '';
+      for (var k = 0; k < 7; k++) {
+        var idx = start + k * 2;
+        if (idx >= hr.time.length) break;
+        var hh = +hr.time[idx].slice(11, 13);
+        var pr = hr.precipitation_probability[idx];
+        html += '<div class="h"><div class="t">' + (k === 0 ? '今' : hh + '時') + '</div>' +
+          '<div class="i">' + wc(hr.weather_code[idx])[0] + '</div>' +
+          '<div>' + Math.round(hr.temperature_2m[idx]) + '°</div>' +
+          '<div class="r">💧' + (pr == null ? '-' : pr) + '%</div>' +
+          '<div class="w' + (hr.wind_speed_10m[idx] >= STRONG_WIND ? ' strong' : '') + '">' + Math.round(hr.wind_speed_10m[idx]) + 'm/s</div></div>';
+      }
+      $('hr').innerHTML = html;
       var t = new Date();
       $('status').innerHTML = '天気 ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + ' 更新';
     }, function () {
