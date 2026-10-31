@@ -27,10 +27,44 @@
   }
   body.night { opacity: 0.45; }
 
+  /* ---- 天気に応じた背景 ----
+     グラデーションは transition できないので 2 枚（#skyA / #skyB）を重ねて opacity で切り替える。
+     動き（#fx）は transform / opacity だけの CSS アニメーションにして、古い iPad でも軽くする。 */
+  #sky { position: fixed; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+  #sky > div { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+  .sky { opacity: 0; transition: opacity 5s; }
+  .sky.on { opacity: 1; }
+  #glow { opacity: 0; transition: opacity 5s; background: linear-gradient(to top, rgba(255, 138, 76, 0.42), rgba(255, 94, 120, 0.14) 40%, rgba(255, 94, 120, 0) 65%); }
+  #glow.on { opacity: 1; }
+  #flash { background: rgb(210, 220, 255); opacity: 0; }
+  #flash.go { animation: flash 1.4s ease-out; }
+  body.night #fx, body.night #flash { display: none; } /* 夜は動きを止める */
+  #viewport { position: relative; z-index: 1; }
+
+  .fx-drop { position: absolute; top: -15vh; width: 1px; height: 9vh; background: linear-gradient(rgba(170, 200, 230, 0), rgba(170, 200, 230, 0.55)); animation: fall linear infinite; }
+  .fx-flake { position: absolute; top: -3vh; width: 0.9vmin; height: 0.9vmin; border-radius: 50%; background: rgba(255, 255, 255, 0.8); animation: snow linear infinite; }
+  .fx-cloud { position: absolute; left: 0; width: 75vw; height: 45vh; background: radial-gradient(ellipse at center, rgba(200, 210, 225, 0.15), rgba(200, 210, 225, 0) 70%); animation: drift linear infinite; }
+  .fx-cloud.fog { background: radial-gradient(ellipse at center, rgba(210, 215, 220, 0.22), rgba(210, 215, 220, 0) 70%); }
+  .fx-sun { position: absolute; right: -25vmin; top: -25vmin; width: 85vmin; height: 85vmin; border-radius: 50%; background: radial-gradient(circle, rgba(255, 200, 120, 0.5), rgba(255, 170, 90, 0.18) 40%, rgba(255, 170, 90, 0) 70%); animation: pulse 8s ease-in-out infinite alternate; }
+  .fx-star { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff; animation: twinkle ease-in-out infinite alternate; }
+
+  @keyframes fall { from { transform: translate3d(0, 0, 0) rotate(10deg); } to { transform: translate3d(-14vh, 125vh, 0) rotate(10deg); } }
+  @keyframes snow {
+    0% { transform: translate3d(0, 0, 0); }
+    25% { transform: translate3d(2vw, 27vh, 0); }
+    50% { transform: translate3d(-1vw, 54vh, 0); }
+    75% { transform: translate3d(2vw, 81vh, 0); }
+    100% { transform: translate3d(0, 108vh, 0); }
+  }
+  @keyframes drift { from { transform: translate3d(-80vw, 0, 0); } to { transform: translate3d(110vw, 0, 0); } }
+  @keyframes pulse { from { opacity: 0.7; transform: scale(0.95); } to { opacity: 1; transform: scale(1.05); } }
+  @keyframes twinkle { from { opacity: 0.12; } to { opacity: 0.9; } }
+  @keyframes flash { 0% { opacity: 0; } 4% { opacity: 0.3; } 9% { opacity: 0.05; } 14% { opacity: 0.22; } 100% { opacity: 0; } }
+
   #app { display: -webkit-flex; display: flex; height: 100%; box-sizing: border-box; padding: 3vmin; }
   .left  { -webkit-flex: 1 1 0; flex: 1 1 0; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; margin-right: 3vmin; min-width: 0; }
   .right { -webkit-flex: 1 1 0; flex: 1 1 0; display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column; min-width: 0; }
-  .card { background: #171b22; border-radius: 2vmin; padding: 2.5vmin 3vmin; box-sizing: border-box; }
+  .card { background: rgba(14, 18, 24, 0.62); border-radius: 2vmin; padding: 2.5vmin 3vmin; box-sizing: border-box; }
 
   /* 時計 */
   .clock { padding-top: 1vmin; padding-bottom: 3vmin; }
@@ -58,7 +92,7 @@
   .hi { color: #ff9e64; } .lo { color: #79c0ff; }
   .loc { font-size: 2.4vmin; color: #7d8590; margin-bottom: 1.5vmin; }
   .loc span { border-bottom: 1px dotted #7d8590; }
-  .fc { display: -webkit-flex; display: flex; margin-top: auto; padding-top: 2vmin; border-top: 1px solid #262c36; }
+  .fc { display: -webkit-flex; display: flex; margin-top: auto; padding-top: 2vmin; border-top: 1px solid rgba(255, 255, 255, 0.08); }
   .fc .d { -webkit-flex: 1 1 0; flex: 1 1 0; text-align: center; font-size: 2.6vmin; line-height: 1.45; }
   .fc .d .n { color: #7d8590; }
   .fc .d .i { font-size: 5vmin; line-height: 1.3; }
@@ -96,8 +130,8 @@
   #hr .h .w { color: #7d8590; font-size: 2.2vmin; }
   #hr .h .w.strong { color: #ffa657; }
 
-  #status { position: fixed; right: 3vmin; bottom: 1vmin; font-size: 1.8vmin; color: #4b535d; }
-  #toast { position: fixed; left: 50%; top: 4vmin; -webkit-transform: translateX(-50%); transform: translateX(-50%); background: rgba(40, 46, 56, 0.92); color: #e8eaed; font-size: 3vmin; padding: 1.5vmin 3vmin; border-radius: 4vmin; white-space: nowrap; opacity: 0; -webkit-transition: opacity 0.3s; transition: opacity 0.3s; pointer-events: none; }
+  #status { position: fixed; right: 3vmin; bottom: 1vmin; font-size: 1.8vmin; color: rgba(255, 255, 255, 0.3); z-index: 2; }
+  #toast { position: fixed; left: 50%; top: 4vmin; -webkit-transform: translateX(-50%); transform: translateX(-50%); background: rgba(40, 46, 56, 0.92); color: #e8eaed; font-size: 3vmin; padding: 1.5vmin 3vmin; border-radius: 4vmin; white-space: nowrap; opacity: 0; -webkit-transition: opacity 0.3s; transition: opacity 0.3s; pointer-events: none; z-index: 2; }
   #toast.show { opacity: 1; }
   #toast small { color: #7d8590; font-size: 2.2vmin; margin-left: 1.5vmin; }
 
@@ -106,7 +140,7 @@
   #pages { display: -webkit-flex; display: flex; width: 200%; height: 100%; -webkit-transition: -webkit-transform 0.4s ease; transition: transform 0.4s ease; }
   #pages.p1 { -webkit-transform: translateX(-50%); transform: translateX(-50%); }
   .page { -webkit-flex: 0 0 50%; flex: 0 0 50%; width: 50%; }
-  #dots { position: fixed; left: 0; right: 0; bottom: 1.2vmin; text-align: center; line-height: 0; }
+  #dots { position: fixed; left: 0; right: 0; bottom: 1.2vmin; text-align: center; line-height: 0; z-index: 2; }
   #dots i { display: inline-block; width: 1.4vmin; height: 1.4vmin; border-radius: 50%; background: #39414c; margin: 0 0.8vmin; }
   #dots i.on { background: #c9d1d9; }
 
@@ -144,6 +178,7 @@
 </style>
 </head>
 <body>
+<div id="sky"><div class="sky on" id="skyA"></div><div class="sky" id="skyB"></div><div id="glow"></div><div id="fx"></div><div id="flash"></div></div>
 <div id="viewport"><div id="pages">
 <div id="app" class="page">
   <div class="left">
@@ -195,7 +230,7 @@
 <script>
 (function () {
   // 変更を公開するたびに必ず書き換える。iPad 側はこれを見て新しい版に切り替わる（checkUpdate）
-  var BUILD = '2026-10-31.1';
+  var BUILD = '2026-10-31.2';
   var WD = ['日', '月', '火', '水', '木', '金', '土'];
   var DEFAULT_LOC = { name: '東京', lat: 35.6895, lon: 139.6917 };
   var NIGHT_FROM = 23, NIGHT_TO = 6; // この時間帯は画面を暗くする
@@ -236,7 +271,7 @@
     var hm = boxDigits(pad(now.getHours()) + ':' + pad(now.getMinutes())), ss = boxDigits(pad(now.getSeconds()));
     $('time').innerHTML = hm + '<span id="sec">' + ss + '</span>';
     $('btime').innerHTML = hm + '<span id="bsec">' + ss + '</span>';
-    if (now.getMinutes() !== lastMin) { lastMin = now.getMinutes(); fitClocks(); }
+    if (now.getMinutes() !== lastMin) { lastMin = now.getMinutes(); fitClocks(); refreshSky(); }
 
     var h = now.getHours();
     var night = NIGHT_FROM > NIGHT_TO ? (h >= NIGHT_FROM || h < NIGHT_TO) : (h >= NIGHT_FROM && h < NIGHT_TO);
@@ -320,6 +355,106 @@
   };
   function wc(code) { return WCODE[code] || ['❓', '不明']; }
 
+  // ---- 天気に応じた背景 ----
+  // [昼, 夜] のグラデーション。文字が読めるよう、どれも暗めにしてある
+  var SKY = {
+    clear:  ['linear-gradient(#0a2a55, #1d5a9a)', 'linear-gradient(#060a1c, #1b1742)'],
+    partly: ['linear-gradient(#13304f, #3a5f85)', 'linear-gradient(#0a0f1e, #1c2333)'],
+    cloudy: ['linear-gradient(#2a3440, #4a5562)', 'linear-gradient(#12161c, #22272f)'],
+    fog:    ['linear-gradient(#3a4048, #5b626b)', 'linear-gradient(#15181c, #26292e)'],
+    rain:   ['linear-gradient(#10232e, #2c4450)', 'linear-gradient(#070f14, #172630)'],
+    snow:   ['linear-gradient(#2b3b52, #6b7f99)', 'linear-gradient(#0d1420, #283447)'],
+    storm:  ['linear-gradient(#1a1029, #2e2440)', 'linear-gradient(#0a0612, #1a1226)']
+  };
+  function skyCategory(code) {
+    if (code <= 1) return 'clear';
+    if (code === 2) return 'partly';
+    if (code === 3) return 'cloudy';
+    if (code === 45 || code === 48) return 'fog';
+    if (code >= 95) return 'storm';
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+    return 'rain';
+  }
+  function parseLocal(s) { // "2026-10-31T06:01"（タイムゾーンなし）を端末の時刻として読む
+    var p = s.split(/[-T:]/);
+    return new Date(+p[0], +p[1] - 1, +p[2], +p[3], +p[4]);
+  }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+
+  // 動作確認用：URL に ?sky=rain&day=0&glow=1 のように付けると、その天気で表示する
+  var skyTest = /[?&]sky=(\w+)/.exec(location.search);
+  var dayTest = /[?&]day=([01])/.exec(location.search);
+  var glowTest = /[?&]glow=1/.test(location.search);
+  var wxCat = null, sunTimes = null, curSky = '', skyFlip = false, flashTimer = null;
+
+  // 毎分と天気の取得後に呼ぶ。昼夜と朝焼け・夕焼けは日の出・日の入りの時刻から決める
+  function refreshSky() {
+    var cat = skyTest && SKY[skyTest[1]] ? skyTest[1] : wxCat;
+    if (!cat) return;
+    var t = new Date().getTime(), isDay = true, glow = false;
+    if (sunTimes) {
+      var rise = sunTimes.rise.getTime(), set = sunTimes.set.getTime(), half = 30 * 60 * 1000;
+      isDay = t >= rise && t < set;
+      glow = Math.abs(t - rise) <= half || Math.abs(t - set) <= half;
+    }
+    if (dayTest) isDay = dayTest[1] === '1';
+    if (glowTest) glow = true;
+    $('glow').className = glow ? 'on' : '';
+
+    var key = cat + (isDay ? 'd' : 'n');
+    if (key === curSky) return;
+    curSky = key;
+    var next = skyFlip ? $('skyA') : $('skyB'), prev = skyFlip ? $('skyB') : $('skyA');
+    skyFlip = !skyFlip;
+    next.style.background = SKY[cat][isDay ? 0 : 1];
+    next.className = 'sky on';
+    prev.className = 'sky';
+    buildFx(cat, isDay);
+  }
+
+  function buildFx(cat, isDay) {
+    var h = '', i, n, dur;
+    if (cat === 'rain' || cat === 'storm') {
+      for (i = 0; i < 28; i++) {
+        h += '<i class="fx-drop" style="left:' + rnd(0, 115).toFixed(1) + '%;animation-duration:' + rnd(0.55, 0.9).toFixed(2) +
+          's;animation-delay:-' + rnd(0, 1).toFixed(2) + 's"></i>';
+      }
+    }
+    if (cat === 'snow') {
+      for (i = 0; i < 32; i++) {
+        dur = rnd(8, 15);
+        h += '<i class="fx-flake" style="left:' + rnd(0, 100).toFixed(1) + '%;animation-duration:' + dur.toFixed(1) +
+          's;animation-delay:-' + rnd(0, dur).toFixed(1) + 's;opacity:' + rnd(0.4, 0.9).toFixed(2) + '"></i>';
+      }
+    }
+    n = { partly: 2, cloudy: 3, fog: 4, rain: 2, storm: 2, snow: 1 }[cat] || 0;
+    for (i = 0; i < n; i++) {
+      dur = rnd(70, 120);
+      h += '<i class="fx-cloud' + (cat === 'fog' ? ' fog' : '') + '" style="top:' + rnd(-10, 60).toFixed(1) + 'vh;animation-duration:' + dur.toFixed(0) +
+        's;animation-delay:-' + rnd(0, dur).toFixed(0) + 's"></i>';
+    }
+    if ((cat === 'clear' || cat === 'partly') && isDay) h += '<i class="fx-sun"></i>';
+    if ((cat === 'clear' || cat === 'partly') && !isDay) {
+      for (i = 0; i < 45; i++) {
+        h += '<i class="fx-star" style="left:' + rnd(0, 100).toFixed(1) + '%;top:' + rnd(0, 75).toFixed(1) + '%;animation-duration:' +
+          rnd(2, 5).toFixed(1) + 's;animation-delay:-' + rnd(0, 5).toFixed(1) + 's"></i>';
+      }
+    }
+    $('fx').innerHTML = h;
+
+    clearTimeout(flashTimer);
+    if (cat === 'storm') scheduleFlash();
+  }
+  function scheduleFlash() { // 雷：20〜60 秒に一度、画面がうっすら光る
+    flashTimer = setTimeout(function () {
+      var f = $('flash');
+      f.className = '';
+      void f.offsetWidth; // アニメーションを最初からやり直させる
+      f.className = 'go';
+      scheduleFlash();
+    }, rnd(20000, 60000));
+  }
+
   // 風向（度）→ 16方位。風速 10m/s 以上は「強い」として色を変える
   var DIRS = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
   var STRONG_WIND = 10;
@@ -331,11 +466,14 @@
       '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
       '&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m' +
       '&wind_speed_unit=ms' +
-      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset' +
       '&timezone=Asia%2FTokyo&forecast_days=6';
     getJSON(url, function (w) {
       var c = w.current, dl = w.daily;
       var now = wc(c.weather_code);
+      wxCat = skyCategory(c.weather_code);
+      sunTimes = { rise: parseLocal(dl.sunrise[0]), set: parseLocal(dl.sunset[0]) };
+      refreshSky();
       $('wicon').innerHTML = now[0];
       $('wdesc').innerHTML = now[1];
       $('wtemp').innerHTML = Math.round(c.temperature_2m) + '<small>°C</small>';
