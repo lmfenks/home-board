@@ -195,7 +195,7 @@
 <script>
 (function () {
   // 変更を公開するたびに必ず書き換える。iPad 側はこれを見て新しい版に切り替わる（checkUpdate）
-  var BUILD = '2026-10-29.3';
+  var BUILD = '2026-10-31.1';
   var WD = ['日', '月', '火', '水', '木', '金', '土'];
   var DEFAULT_LOC = { name: '東京', lat: 35.6895, lon: 139.6917 };
   var NIGHT_FROM = 23, NIGHT_TO = 6; // この時間帯は画面を暗くする
@@ -363,10 +363,12 @@
       $('fc').innerHTML = html;
 
       // 大きい時計のページ用：今日と明日
+      // 今日は 1 ページ目と同じく「今の天気」（daily の weather_code はその日で一番悪い天気なので食い違う）
       for (var b = 0; b < 2; b++) {
         var bp = dl.precipitation_probability_max[b];
-        $('b' + b + 'i').innerHTML = wc(dl.weather_code[b])[0];
-        $('b' + b).innerHTML = wc(dl.weather_code[b])[1] + '<br>' +
+        var bw = b === 0 ? now : wc(dl.weather_code[b]);
+        $('b' + b + 'i').innerHTML = bw[0];
+        $('b' + b).innerHTML = bw[1] + (b === 0 ? '　' + Math.round(c.temperature_2m) + '°' : '') + '<br>' +
           '<span class="hi">' + Math.round(dl.temperature_2m_max[b]) + '°</span> / <span class="lo">' + Math.round(dl.temperature_2m_min[b]) + '°</span>' +
           '　💧' + (bp == null ? '-' : bp) + '%';
       }
